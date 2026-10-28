@@ -26,15 +26,15 @@ results per task. It queries tasks sequentially with a two-second pause.
 Each task runs in a fresh subprocess with a wall-clock timeout. One board is
 passed to JobSpy at a time. No discovery results or JDs are read from a cache;
 there is no cached or alternate-source fallback. Source websites may still
-serve stale data. JobSpy fetches search results; the downstream agent must fetch
-and verify the current full JD before screening. Extra per-job description
-requests are disabled here.
+serve stale data. JobSpy fetches search results and full descriptions with
+`fetch_description=True`. The downstream agent must retain their provenance and
+verify that description text is present before screening.
 
 ## Output contract
 
 Stdout is a JSON object containing `jobs`, `runs`, `status`, and `cacheReused`.
 Each job includes scanner-compatible `title`, `url`, `company`, `location`,
-optional `postedAt` (epoch milliseconds), description when supplied by search,
+optional `postedAt` (epoch milliseconds), description from search or the enabled detail request,
 and optional annual salary. Provenance retains board URL, query, search location
 and discovery timestamp. A source-supplied direct application URL takes priority;
 it is not independently verified. Unknown dates remain unknown. Hourly or other
@@ -74,3 +74,21 @@ new usable URLs, valid date/salary normalization, bounded runtime, explicit
 rate-limit/failure reporting and compatibility with the parent normalizer.
 No claim of board reliability follows from one successful run. Keep raw test
 results outside the repository; the MIT license and upstream attribution remain.
+
+## Full-description handoff (2026-10-28)
+
+The adapter now always requests `fetch_description=True`. The career-ops provider
+passes full descriptions and provenance through a per-cycle JSON handoff before
+scan deduplication, so known failed jobs can receive newly fetched descriptions.
+The worker accepts description text only from its current cycle, retaining older
+text solely for audit. Existing failed board URLs absent from discovery can be
+fetched afresh with `python -m jobspy.career_details` (stdin JSON with `url`).
+LinkedIn, Glassdoor and ZipRecruiter have bounded detail-fetch support; Glassdoor
+uses the normal session initialization before its detail request. No search or
+model is needed to retrieve these pages. Empty/blocked results remain explicit
+retrieval failures, not screening passes. Live query budgets are 120 seconds and
+boards remain sequential.
+
+Validation: 11 adapter/detail tests, 4 Node provider tests and 21 live-agent tests
+passed. Fresh LinkedIn, Glassdoor and ZipRecruiter detail requests returned full
+JDs; a fresh Glassdoor search also returned a full JD with descriptions enabled.

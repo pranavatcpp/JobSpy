@@ -129,7 +129,7 @@ def worker(payload: dict) -> dict:
         results_wanted=payload["limit"],
         hours_old=payload["hours"],
         country_indeed="USA",
-        fetch_description=False,
+        fetch_description=True,
         enforce_annual_salary=False,
         verbose=0,
     )
@@ -196,6 +196,8 @@ def collect(
                 key = identity(job["url"])
                 if key in jobs:
                     jobs[key]["provenance"].extend(job["provenance"])
+                    if not jobs[key]["description"] and job["description"]:
+                        jobs[key]["description"] = job["description"]
                 else:
                     jobs[key] = job
                 run["count"] += 1

@@ -4,12 +4,25 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from jobspy.career_ops import collect, identity, normalize
+from jobspy.career_ops import collect, identity, normalize, worker
 
 
 class AdapterTests(unittest.TestCase):
     def row(self, **kw):
         return {"title": "Engineer", "job_url": "https://board.example/job?id=1", **kw}
+
+    def test_worker_requests_full_descriptions(self):
+        frame = SimpleNamespace(attrs={}, to_json=lambda **kw: '[]')
+        with patch('jobspy.scrape_jobs', return_value=frame) as scrape:
+            worker({'site':'linkedin','query':'Engineer','location':'CA','limit':1,'hours':48})
+        self.assertTrue(scrape.call_args.kwargs['fetch_description'])
+
+    def test_description_and_source_survive_normalization(self):
+        row = self.row(description='Full qualification text', job_url_direct='https://employer.example/job')
+        result = normalize(row,'linkedin','Engineer','CA','now')
+        self.assertEqual(result['description'], row['description'])
+        self.assertEqual(result['sourceUrl'], row['job_url'])
+        self.assertEqual(result['url'], row['job_url_direct'])
 
     def test_missing_fields_and_unsafe_urls(self):
         for row in (
